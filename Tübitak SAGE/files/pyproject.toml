@@ -1,0 +1,12 @@
+[project]
+name = "half-moon-xy-mtf"
+version = "1.0.0"
+description = "Half-moon X/Y MTF using the same straight-edge algorithm for two physical MAT captures."
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "matplotlib>=3.7",
+    "h5py>=3.8",
+    "pyqt6>=6.11.0",
+]
