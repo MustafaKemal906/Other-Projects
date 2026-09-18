@@ -1,76 +1,65 @@
-# ROS Crop Row Detection
+# ROS Tarımsal Sıra Tespiti
 
-A ROS 1 + OpenCV prototype for detecting crop rows and green vegetation from a live camera stream.
+Bu proje, ROS ve OpenCV kullanarak kamera görüntüsünden **tarım sıralarını ve yeşil bitki bölgelerini tespit etmek** için geliştirilmiştir.
 
-The scripts in this repository subscribe to a ROS image topic, convert incoming frames to OpenCV images, isolate vegetation, detect crop-row candidates, and visualize different experimental approaches for row and center detection.
+Sistem ROS üzerinden gelen kamera görüntüsünü alır, görüntü işleme adımları uygular ve farklı yöntemlerle bitki sıralarının yönünü bulmaya çalışır.
 
-## Overview
+---
 
-The main processing ideas used across the scripts are:
+## Genel Akış
 
 ```text
-ROS Camera Image
-      ↓
+ROS Kamera Görüntüsü
+        ↓
 CvBridge
-      ↓
-Color / Grayscale Processing
-      ↓
-Thresholding
-      ↓
-Strip-Based Feature Extraction
-      ↓
-Crop-Row Candidate Points
-      ↓
-Hough Line Detection
-      ↓
-Visualization
+        ↓
+Görüntü İşleme
+        ↓
+Bitki Bölgesini Ayırma
+        ↓
+Sıra Noktalarını Bulma
+        ↓
+Hough Transform
+        ↓
+Tarım Sıralarını Gösterme
 ```
 
-Several alternative detection methods are also included:
+Projede ayrıca farklı deneme yöntemleri de bulunmaktadır:
 
 ```text
-Green HSV Mask
-   ├── Center of Mass
-   ├── Contour Detection
-   └── Convex Hull / Left-Right Geometry
+HSV Yeşil Maske
+   ├── Kütle Merkezi
+   ├── Kontur Tespiti
+   └── Convex Hull
 ```
 
-## ROS Input
+---
 
-The scripts subscribe to:
+## ROS Kamera Girdisi
+
+Kodlar aşağıdaki ROS görüntü topic'ine abone olur:
 
 ```text
 /atom/zed2/left/image_rect_color
 ```
 
-Incoming `sensor_msgs/Image` messages are converted to OpenCV images using `CvBridge`.
+ROS'tan gelen `sensor_msgs/Image` mesajları `CvBridge` ile OpenCV görüntüsüne çevrilir.
 
-## Dependencies
+---
+
+## Kullanılan Teknolojiler
 
 - ROS 1
 - Python 3
-- `rospy`
-- `sensor_msgs`
-- `cv_bridge`
-- OpenCV (`cv2`)
+- OpenCV
 - NumPy
+- rospy
+- sensor_msgs
+- cv_bridge
 
-Example ROS dependencies:
+---
 
-```bash
-sudo apt install ros-${ROS_DISTRO}-cv-bridge
-sudo apt install ros-${ROS_DISTRO}-sensor-msgs
-```
-
-Python dependencies:
-
-```bash
-pip install numpy opencv-python
-```
-
-If OpenCV is already provided by the ROS installation, installing another OpenCV package may not be necessary.
-
-## File Structure
+## Proje Dosyaları
 
 ```text
 .
@@ -82,173 +71,51 @@ If OpenCV is already provided by the ROS installation, installing another OpenCV
 └── 763ef48f-1564-4ab0-9626-d6a59be3a664.py
 ```
 
-## Scripts
+---
 
-### `ekinoks.py`
+## `ekinoks.py`
 
-The baseline crop-row detection pipeline.
+Temel tarım sırası tespit algoritmasıdır.
 
-It:
+İşlem sırası:
 
-1. Receives images from the ROS camera topic.
-2. Applies a vegetation-enhancing grayscale transform:
+```text
+Kamera Görüntüsü
+        ↓
+2G - R - B
+        ↓
+Otsu Threshold
+        ↓
+Yatay Şeritlere Bölme
+        ↓
+Dikey Piksel Toplamı
+        ↓
+Geçiş Noktalarını Bulma
+        ↓
+Sıra Merkez Noktaları
+        ↓
+Hough Transform
+        ↓
+Tarım Sırası Çizgileri
+```
+
+Bitki bölgelerini belirginleştirmek için:
 
 ```python
 2 * G - R - B
 ```
 
-3. Uses Otsu thresholding to create a binary vegetation image.
-4. Divides the image into horizontal strips.
-5. Computes the vertical vegetation sum for every column.
-6. Detects vegetation-region transitions.
-7. Places candidate crop-row center points.
-8. Applies a Hough transform to estimate crop-row lines.
-9. Displays the detected lines.
+ifadesi kullanılır.
 
-Main pipeline:
+Daha sonra görüntü Otsu yöntemi ile siyah-beyaz hale getirilir.
 
-```text
-Camera
-  ↓
-2G - R - B
-  ↓
-Otsu Threshold
-  ↓
-Horizontal Strips
-  ↓
-Vertical Column Sum
-  ↓
-Transition Detection
-  ↓
-Candidate Row Centers
-  ↓
-Hough Transform
-  ↓
-Crop Row Lines
-```
+---
 
-### `detection.py`
+## Şerit Tabanlı Algoritma
 
-An experimental contour-based detection version.
+Görüntü yatay şeritlere bölünür.
 
-In addition to the strip/Hough pipeline, it tests a second approach using:
-
-```text
-Binary Image
-    ↓
-Gaussian Blur
-    ↓
-Adaptive Threshold
-    ↓
-Morphological Closing
-    ↓
-Contour Detection
-    ↓
-Area Filtering
-```
-
-Small contours are discarded and the remaining contours are drawn as detected vegetation or crop-row regions.
-
-### `detection_main.py`
-
-A closely related contour-detection prototype.
-
-It applies:
-
-- grayscale conversion
-- Gaussian blur
-- adaptive Gaussian thresholding
-- morphological closing
-- external contour detection
-- contour-area filtering
-
-The file currently reads a test image from:
-
-```text
-./img/2_image_bin_2.jpg
-```
-
-inside the `drawer()` function.
-
-### `center_detection.py`
-
-An experimental green-region center detection method.
-
-The image is converted to HSV and a green mask is generated using:
-
-```python
-lower_green = [35, 50, 50]
-upper_green = [85, 255, 255]
-```
-
-Image moments are then used to estimate the center of mass of the detected vegetation:
-
-```text
-RGB Image
-   ↓
-HSV Conversion
-   ↓
-Green Mask
-   ↓
-Image Moments
-   ↓
-Center of Mass
-   ↓
-Reference Line
-```
-
-A vertical line is drawn from the detected center toward the bottom of the image.
-
-### `main.py`
-
-A geometry-based green vegetation detection prototype.
-
-The frame is converted to HSV and thresholded for green pixels. Detected contour points are separated into left and right groups relative to a center reference line.
-
-For each side:
-
-1. Contour points are collected.
-2. A convex hull is calculated.
-3. The hull center is estimated.
-4. Top and bottom points are found.
-5. A direction vector is calculated.
-6. A line describing the vegetation/crop-row direction is drawn.
-
-Simplified pipeline:
-
-```text
-Camera Frame
-    ↓
-HSV Green Mask
-    ↓
-Contours
-    ↓
-Left / Right Separation
-    ↓
-Convex Hulls
-    ↓
-Direction Estimation
-    ↓
-Detected Row Geometry
-```
-
-### `763ef48f-1564-4ab0-9626-d6a59be3a664.py`
-
-An alternative version of the convex-hull approach used in `main.py`.
-
-It processes the live ROS frame directly inside `drawer()` and:
-
-- isolates green regions
-- divides contour points into left and right groups
-- calculates convex hulls
-- estimates direction vectors
-- draws detected geometry over the camera frame
-
-## Strip-Based Crop Row Detection
-
-The core row-detection algorithm divides the binary image into horizontal strips.
-
-Default parameters:
+Varsayılan değerler:
 
 ```python
 NUMBER_OF_STRIPS = 10
@@ -256,27 +123,31 @@ SUM_THRESH = 2
 DIFF_NOISE_THRESH = 8
 ```
 
-For each strip, the algorithm calculates the amount of vegetation in every image column:
+Her şerit için görüntünün sütunlarındaki bitki piksel miktarı hesaplanır.
 
 ```text
-column
+Sütun
   ↓
-sum of binary vegetation pixels
+Bitki Piksel Toplamı
   ↓
-threshold
+Threshold
   ↓
-0 / 1 vegetation presence
+Bitki Var / Yok
 ```
 
-Transitions from background to vegetation and vegetation to background define a vegetation segment.
+Bitkinin başladığı ve bittiği noktalar bulunur.
 
-The center of a sufficiently wide segment is stored as a crop-row candidate point.
+Yeterince geniş bir bitki bölgesinin orta noktası, tarım sırası için aday nokta olarak kaydedilir.
 
-These candidate points are later passed to the Hough transform.
+Bu noktalar daha sonra Hough Transform'a gönderilir.
 
-## Hough Line Detection
+---
 
-The default Hough parameters are:
+## Hough Transform
+
+Aday noktalar kullanılarak tarım sıralarının doğrusal yapısı bulunur.
+
+Kullanılan temel parametreler:
 
 ```python
 HOUGH_RHO = 5
@@ -284,46 +155,167 @@ HOUGH_ANGLE = pi / 180
 HOUGH_THRESH = 6
 ```
 
-Detected lines are filtered using:
+Çok eğimli yanlış çizgileri elemek için:
 
 ```python
 ANGLE_THRESH = 30°
 ```
 
-Only lines sufficiently close to the expected crop-row orientation are drawn.
+değeri kullanılır.
 
-## Green Vegetation Detection
+---
 
-Some experimental scripts use HSV color segmentation instead of the `2G - R - B` transform.
+## `detection.py`
 
-The current HSV range is:
+Bu dosyada kontur tabanlı farklı bir yöntem denenmiştir.
+
+Akış:
+
+```text
+Binary Görüntü
+      ↓
+Gaussian Blur
+      ↓
+Adaptive Threshold
+      ↓
+Morphological Closing
+      ↓
+Contour Detection
+      ↓
+Alan Filtreleme
+```
+
+Küçük konturlar elenir ve kalan bölgeler bitki veya tarım sırası adayı olarak gösterilir.
+
+---
+
+## `detection_main.py`
+
+Kontur tabanlı yöntemin başka bir deneme sürümüdür.
+
+Kullanılan işlemler:
+
+- Grayscale dönüşümü
+- Gaussian Blur
+- Adaptive Threshold
+- Morphological Closing
+- Contour Detection
+- Alan filtresi
+
+Kod içinde test için şu görüntü kullanılır:
+
+```text
+./img/2_image_bin_2.jpg
+```
+
+---
+
+## `center_detection.py`
+
+Yeşil alanın merkezini bulmak için kullanılan deneme yöntemidir.
+
+Öncelikle görüntü HSV renk uzayına çevrilir.
+
+Yeşil renk aralığı:
+
+```python
+lower_green = [35, 50, 50]
+upper_green = [85, 255, 255]
+```
+
+Daha sonra görüntü momentleri kullanılarak yeşil alanın kütle merkezi hesaplanır.
+
+```text
+RGB Görüntü
+    ↓
+HSV
+    ↓
+Yeşil Maske
+    ↓
+Image Moments
+    ↓
+Kütle Merkezi
+    ↓
+Referans Çizgisi
+```
+
+---
+
+## `main.py`
+
+Bu dosyada yeşil bitki bölgeleri geometrik olarak analiz edilir.
+
+İşlem sırası:
+
+```text
+Kamera Görüntüsü
+        ↓
+HSV Yeşil Maske
+        ↓
+Konturlar
+        ↓
+Sol / Sağ Ayrımı
+        ↓
+Convex Hull
+        ↓
+Yön Hesabı
+        ↓
+Tarım Sırası Geometrisi
+```
+
+Kontur noktaları görüntünün sol ve sağ tarafı olarak iki gruba ayrılır.
+
+Her taraf için:
+
+1. Kontur noktaları alınır.
+2. Convex Hull hesaplanır.
+3. Merkez bulunur.
+4. Üst ve alt noktalar bulunur.
+5. Yön vektörü hesaplanır.
+6. Görüntü üzerine yön çizgisi çizilir.
+
+---
+
+## Alternatif Convex Hull Dosyası
+
+`763ef48f-1564-4ab0-9626-d6a59be3a664.py` dosyası `main.py` içerisindeki Convex Hull yaklaşımının alternatif bir sürümüdür.
+
+Bu yöntemde:
+
+- Yeşil alanlar ayrılır.
+- Noktalar sol ve sağ olarak ikiye bölünür.
+- Convex Hull hesaplanır.
+- Yön vektörü bulunur.
+- Sonuç kamera görüntüsü üzerine çizilir.
+
+---
+
+## Yeşil Bitki Tespiti
+
+Bazı yöntemlerde `2G - R - B` yerine HSV renk filtresi kullanılır.
+
+Kullanılan yeşil aralığı:
 
 ```python
 lower_green = np.array([35, 50, 50])
 upper_green = np.array([85, 255, 255])
 ```
 
-Pixels inside this interval are considered vegetation candidates.
+Bu değerler aşağıdaki şartlara göre değiştirilebilir:
 
-The exact HSV range may need to be adjusted depending on:
+- Işık miktarı
+- Kamera ayarları
+- Bitki türü
+- Toprak rengi
+- Hava koşulları
 
-- illumination
-- camera exposure
-- crop type
-- soil color
-- weather conditions
+---
 
-## Saved Debug Images
+## Kaydedilen Ara Görüntüler
 
-Several scripts save intermediate frames for debugging.
+Debug amacıyla bazı görüntüler kaydedilir.
 
-Frames selected for saving:
-
-```python
-images_to_save = [2, 3, 4, 5]
-```
-
-Examples of generated intermediate images include:
+Örnek dosyalar:
 
 ```text
 0_image_in
@@ -334,165 +326,106 @@ Examples of generated intermediate images include:
 nihai
 ```
 
-The current source files contain hard-coded output paths such as:
+Kaydedilecek frame numaraları:
+
+```python
+images_to_save = [2, 3, 4, 5]
+```
+
+---
+
+## Çalıştırma
+
+Öncelikle ROS ve kamera sistemi çalışıyor olmalıdır.
+
+Ardından workspace aktif edilir:
+
+```bash
+source ~/catkin_ws/devel/setup.bash
+```
+
+Temel algoritmayı çalıştırmak için:
+
+```bash
+python3 ekinoks.py
+```
+
+Geometrik yöntemi çalıştırmak için:
+
+```bash
+python3 main.py
+```
+
+Kontur tabanlı yöntemi çalıştırmak için:
+
+```bash
+python3 detection.py
+```
+
+Merkez tespitini çalıştırmak için:
+
+```bash
+python3 center_detection.py
+```
+
+---
+
+## Önemli Notlar
+
+Bazı dosyalarda bilgisayara özel sabit klasör yolları bulunmaktadır:
 
 ```text
 /home/mustafa/catkin_ws/src/atom/script/img
 /home/mustafa/catkin_ws/src/atom/script2/img
 ```
 
-Update these paths before running the scripts on another computer.
+Başka bir bilgisayarda çalıştırmadan önce bu yollar değiştirilmelidir.
 
-## Running
-
-Start ROS and the camera driver that publishes:
-
-```text
-/atom/zed2/left/image_rect_color
-```
-
-Then source the catkin workspace:
-
-```bash
-source ~/catkin_ws/devel/setup.bash
-```
-
-Run one of the scripts with Python:
-
-```bash
-python3 ekinoks.py
-```
-
-or:
-
-```bash
-python3 main.py
-```
-
-Example for the contour experiment:
-
-```bash
-python3 detection.py
-```
-
-Example for center detection:
-
-```bash
-python3 center_detection.py
-```
-
-## Recommended Repository Layout
-
-```text
-atom/
-├── README.md
-├── scripts/
-│   ├── ekinoks.py
-│   ├── main.py
-│   ├── detection.py
-│   ├── detection_main.py
-│   └── center_detection.py
-└── img/
-```
-
-## Important Notes
-
-### Hard-Coded Paths
-
-Some scripts contain absolute paths tied to the original catkin workspace. Replace them with project-relative paths or configurable ROS parameters for portability.
-
-### Test Images
-
-Some experimental `drawer()` implementations read fixed images such as:
+Bazı deneysel kodlar ayrıca sabit test görüntüleri kullanır:
 
 ```text
 ./img/green_2.jpg
 ./img/2_image_bin_2.jpg
 ```
 
-These files must exist if those code paths are used.
+---
 
-### Empty Green Regions
-
-The center-of-mass and convex-hull experiments assume that green pixels were detected.
-
-If the green mask is empty:
-
-- image moments may have `m00 = 0`
-- left/right point arrays may be empty
-- `cv2.convexHull()` may fail
-
-Production use should add validation before these calculations.
-
-### Python Shebang
-
-The current files use:
+## Algoritma Özeti
 
 ```text
-#!/usr/bin python3
+                    ROS Kamera
+                        ↓
+                 OpenCV / CvBridge
+                        ↓
+          ┌─────────────┴─────────────┐
+          ↓                           ↓
+      2G - R - B                HSV Yeşil Maske
+          ↓                           ↓
+    Otsu Threshold          ┌─────────┼─────────┐
+          ↓                 ↓         ↓         ↓
+    Şerit İşleme        Merkez     Kontur   Convex Hull
+          ↓
+    Aday Noktalar
+          ↓
+   Hough Transform
+          ↓
+ Tarım Sırası Çizgileri
 ```
 
-When launching the files directly, use a valid Python 3 shebang such as:
+---
 
-```text
-#!/usr/bin/env python3
-```
+## Projenin Amacı
 
-Alternatively, run them explicitly with:
+Bu projenin amacı, tarım alanında kamera görüntülerinden bitki sıralarını otomatik olarak tespit etmek için farklı görüntü işleme yöntemlerini denemektir.
 
-```bash
-python3 script_name.py
-```
+Projede kullanılan başlıca yöntemler:
 
-## Algorithm Summary
-
-```text
-                         ┌──────────────────────┐
-                         │ ROS Camera Image     │
-                         └──────────┬───────────┘
-                                    │
-                         ┌──────────▼───────────┐
-                         │ OpenCV / CvBridge    │
-                         └──────────┬───────────┘
-                                    │
-                 ┌──────────────────┴──────────────────┐
-                 │                                     │
-       ┌─────────▼─────────┐                 ┌─────────▼─────────┐
-       │ 2G - R - B        │                 │ HSV Green Mask    │
-       └─────────┬─────────┘                 └─────────┬─────────┘
-                 │                                     │
-       ┌─────────▼─────────┐          ┌────────────────┼────────────────┐
-       │ Otsu Threshold    │          │                │                │
-       └─────────┬─────────┘     Center of Mass    Contours       Convex Hull
-                 │
-       ┌─────────▼─────────┐
-       │ Strip Processing  │
-       └─────────┬─────────┘
-                 │
-       ┌─────────▼─────────┐
-       │ Candidate Points  │
-       └─────────┬─────────┘
-                 │
-       ┌─────────▼─────────┐
-       │ Hough Transform   │
-       └─────────┬─────────┘
-                 │
-       ┌─────────▼─────────┐
-       │ Crop Row Lines    │
-       └───────────────────┘
-```
-
-## Purpose
-
-This repository contains experimental computer-vision approaches for crop-row and vegetation geometry detection from a ROS camera stream.
-
-The scripts explore multiple approaches rather than representing a single finalized detector:
-
-- vegetation-enhanced grayscale processing
-- Otsu thresholding
-- strip-based crop-row center extraction
-- Hough line detection
-- adaptive-threshold contour detection
-- HSV green segmentation
-- center-of-mass estimation
-- convex-hull geometry analysis
+- `2G - R - B` bitki belirginleştirme
+- Otsu threshold
+- Şerit tabanlı sıra tespiti
+- Hough Transform
+- Adaptive Threshold
+- Kontur tespiti
+- HSV yeşil renk filtresi
+- Kütle merkezi hesabı
+- Convex Hull analizi
