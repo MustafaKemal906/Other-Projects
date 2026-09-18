@@ -1,5 +1,7 @@
 # STM Stajı – Pytest Web Test Otomasyonu
 
+Test mühendisi stajımda savunma sanayi gizlilik gerekçesiyle gerçek projede yerine bir web otomasyonunu test etme ve raporlama görevi verildi. Ancak dosyalar stajdan sonra silindi. İlgili sunum mailde paylaşıldı. Bu stajda önemli olan zaten kodlar değil genel akış olduğu için gerekli açıklama aşağıdadır. 
+
 Bu proje, **STM stajı kapsamında test geliştirme çalışması** olarak hazırlanmış bir web test otomasyonu projesidir.
 
 Projede belirlenen yazılım gereksinimleri, manuel test prosedürlerine dönüştürülmüş ve ardından **Python + pytest** kullanılarak otomatik test senaryoları halinde çalıştırılmıştır.
